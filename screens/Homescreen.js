@@ -7,19 +7,19 @@ const Home = () => {
 
   const fetchPaymentSheetParams = async () => {
     try {
-      const response = await fetch('https://localhost:3000/payment-sheet', {
+      const response = await fetch('http://192.168.1.100:3000/payment-sheet', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ amount: 1000 }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 1000 }), // Example amount in cents
       });
+  
       const { paymentIntent, ephemeralKey, customer } = await response.json();
       return { paymentIntent, ephemeralKey, customer };
     } catch (error) {
-      console.error("Error fetching payment sheet params:", error);
+      console.error('Error fetching payment sheet params:', error);
     }
   };
+  
   
   const initializePaymentSheet = async () => {
     const { paymentIntent, ephemeralKey, customer } = await fetchPaymentSheetParams();
