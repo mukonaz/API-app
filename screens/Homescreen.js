@@ -1,71 +1,98 @@
-import React from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Button, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useStripe } from '@stripe/stripe-react-native';
 
 const Home = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [loading, setLoading] = useState(false);
+
+  const BASE_URL = 'http://192.168.1.132:3000';
 
   const fetchPaymentSheetParams = async () => {
     try {
-      const response = await fetch('http://192.168.1.100:3000/payment-sheet', {
+      const response = await fetch(`${BASE_URL}/payment-sheet`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 1000 }), // Example amount in cents
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: 1000,
+        }),
       });
-  
-      const { paymentIntent, ephemeralKey, customer } = await response.json();
-      return { paymentIntent, ephemeralKey, customer };
+
+      const data = await response.json();
+      return data;
     } catch (error) {
-      console.error('Error fetching payment sheet params:', error);
+      console.error('Error:', error);
+      throw error;
     }
   };
-  
-  
-  const initializePaymentSheet = async () => {
-    const { paymentIntent, ephemeralKey, customer } = await fetchPaymentSheetParams();
-    if (!paymentIntent || !ephemeralKey || !customer) {
-      alert("Failed to fetch payment parameters");
-      return;
-    }
-    
-    const { error } = await initPaymentSheet({
-      paymentIntentClientSecret: paymentIntent,
-      customerEphemeralKeySecret: ephemeralKey,
-      customerId: customer,
-    });
-    
-    if (error) {
-      console.error("Error initializing payment sheet:", error);
-      alert("Payment initialization failed");
-    } else {
-      openPaymentSheet();
+
+  const handlePayPress = async () => {
+    try {
+      setLoading(true);
+
+      const { paymentIntent, ephemeralKey, customer } = await fetchPaymentSheetParams();
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Test Store',
+        paymentIntentClientSecret: paymentIntent,
+        customerEphemeralKeySecret: ephemeralKey,
+        customerId: customer,
+        allowsDelayedPaymentMethods: false,
+        appearance: {
+          colors: {
+            primary: '#000000',
+          },
+        },
+      });
+
+      if (initError) {
+        Alert.alert('Error', initError.message);
+        return;
+      }
+
+      const { error: paymentError } = await presentPaymentSheet();
+
+      if (paymentError) {
+        Alert.alert('Error', paymentError.message);
+      } else {
+        Alert.alert('Success', 'Payment complete!');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
     }
   };
-  
-  const openPaymentSheet = async () => {
-    const { error } = await presentPaymentSheet();
-    if (error) {
-      console.error("Error presenting payment sheet:", error);
-      alert(`Error: ${error.message}`);
-    } else {
-      alert("Payment successful!");
-    }
-  };
-  
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Product: Your soul</Text>
-      <Text style={styles.price}>Price: R100.00</Text>
-      <Button title="Pay" onPress={initializePaymentSheet} />
+      <Text style={styles.title}>Product: your soul</Text>
+      <Text style={styles.price}>Price: R10.00</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : (
+        <Button title="Pay Now" onPress={handlePayPress} />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold' },
-  price: { fontSize: 18, marginVertical: 10 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  price: {
+    fontSize: 18,
+    marginVertical: 10,
+  },
 });
 
 export default Home;
